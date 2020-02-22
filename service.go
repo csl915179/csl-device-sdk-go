@@ -94,7 +94,14 @@ func (s *Service) Start(errChan chan error) (err error) {
 	s.controller.InitRestRoutes()
 	common.LoggingClient.Info(fmt.Sprintf("*Service Start() called, name=%s, version=%s", common.ServiceName, common.ServiceVersion))
 	go func() {
-		errChan <- http.ListenAndServe(common.Colon+strconv.Itoa(s.svcInfo.Port), s.controller.Router())
+		server := &http.Server{
+			Addr: common.Colon+strconv.Itoa(s.svcInfo.Port),
+			Handler: s.controller.Router(),
+		}
+		go server.ListenAndServe()
+		time.Sleep(30*time.Second)
+		server.Shutdown(nil)
+		//errChan <- http.ListenAndServe(common.Colon+strconv.Itoa(s.svcInfo.Port), s.controller.Router())
 	}()
 	common.LoggingClient.Info("Listening on port: " + strconv.Itoa(common.CurrentConfig.Service.Port))
 
@@ -231,6 +238,7 @@ func makeNewAddressable() (*contract.Addressable, error) {
 
 // Stop shuts down the Service
 func (s *Service) Stop(force bool) error {
+	svc = nil
 	s.stopped = true
 	common.Driver.Stop(force)
 	autoevent.GetManager().StopAutoEvents()

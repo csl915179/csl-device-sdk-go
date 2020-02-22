@@ -12,6 +12,7 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/edgexfoundry/device-sdk-go"
 	dsModels "github.com/edgexfoundry/device-sdk-go/pkg/models"
@@ -28,13 +29,14 @@ type Options struct {
 var opts Options
 
 // Bootstrap starts the Device Service in a default way
-func Bootstrap(serviceName string, serviceVersion string, driver dsModels.ProtocolDriver) {
+func Bootstrap(serviceName string, serviceVersion string, driver dsModels.ProtocolDriver, confProfile string, confDir string) {
 	//flag.CommandLine = flag.NewFlagSet(os.Args[0], flag.ExitOnError) // clean up existing flag defined by other code
 	_, err := flags.Parse(&opts)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 	}
-
+	opts.ConfProfile = confProfile
+	opts.ConfDir = confDir
 	device.SetOverwriteConfig(opts.OverwriteConf)
 	if err := startService(serviceName, serviceVersion, driver); err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
@@ -50,7 +52,7 @@ func startService(serviceName string, serviceVersion string, driver dsModels.Pro
 
 	fmt.Fprintf(os.Stdout, "Calling service.Start.\n")
 	errChan := make(chan error, 2)
-	listenForInterrupt(errChan)
+	csllistenForInterrupt(errChan)
 	go s.Start(errChan)
 
 	err = <-errChan
@@ -64,5 +66,12 @@ func listenForInterrupt(errChan chan error) {
 		c := make(chan os.Signal)
 		signal.Notify(c, syscall.SIGINT, syscall.SIGTERM)
 		errChan <- fmt.Errorf("%s", <-c)
+	}()
+}
+func csllistenForInterrupt(errChan chan error) {
+	go func() {
+		err := fmt.Errorf("Stop Service")
+		time.Sleep(30*time.Second)
+		errChan <- err
 	}()
 }
